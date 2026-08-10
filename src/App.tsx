@@ -19,16 +19,40 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { fr, frCopy as copy, languages, Theme, ThemeId } from "./content";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  contentByLanguage,
+  copyByLanguage,
+  fr,
+  frCopy,
+  languages,
+  LanguageCode,
+  LocaleContent,
+  SiteCopy,
+  Theme,
+  ThemeId,
+} from "./content";
+import { uiExtrasByLanguage, type UiExtras } from "./content/ui";
 
 type Screen = "welcome" | "languages" | "themes" | "theme" | "quiz" | "recap";
 type ThemeProgress = { completed: ThemeId[]; inProgress: ThemeId[] };
+type QuizState = { questionIndex: number; selected: number | null; score: number };
 
 const STORAGE_PROGRESS = "pomembal.progress.v2";
 const STORAGE_LANGUAGE = "pomembal.language";
 const emptyProgress: ThemeProgress = { completed: [], inProgress: [] };
-const themes = fr.themes;
+const emptyQuiz: QuizState = { questionIndex: 0, selected: null, score: 0 };
+
+type LocaleContextValue = { content: LocaleContent; copy: SiteCopy; extras: UiExtras };
+const LocaleContext = createContext<LocaleContextValue>({
+  content: fr,
+  copy: frCopy,
+  extras: uiExtrasByLanguage.FR,
+});
+
+function useLocale() {
+  return useContext(LocaleContext);
+}
 
 const themeIcons: Record<ThemeId, typeof ShieldCheck> = {
   entree: HardHat,
@@ -57,12 +81,16 @@ function Header({
   onLanguage,
   completedCount,
   languageSelected,
+  language,
 }: {
   onBack?: () => void;
   onLanguage?: () => void;
   completedCount: number;
   languageSelected: boolean;
+  language: LanguageCode;
 }) {
+  const { content, copy, extras } = useLocale();
+  const themes = content.themes;
   const percentage = Math.round((completedCount / themes.length) * 100);
   return (
     <header className="site-header">
@@ -74,7 +102,7 @@ function Header({
         ) : <div className="header-spacer" />}
         <Brand />
         {languageSelected ? (
-          <button className="language-chip" onClick={onLanguage} aria-label={copy.header.language}>FR</button>
+          <button className="language-chip" onClick={onLanguage} aria-label={copy.header.language}>{language}</button>
         ) : <span className="language-chip passive" aria-label="Français">FR</span>}
       </div>
       <div
@@ -84,7 +112,7 @@ function Header({
         aria-valuemin={0}
         aria-valuemax={8}
         aria-valuenow={completedCount}
-        aria-valuetext={`${completedCount} thème${completedCount > 1 ? "s" : ""} terminé${completedCount > 1 ? "s" : ""} sur 8`}
+        aria-valuetext={extras.progressText(completedCount)}
       >
         <span style={{ width: `${percentage}%` }} />
       </div>
@@ -93,6 +121,8 @@ function Header({
 }
 
 function Welcome({ onStart }: { onStart: () => void }) {
+  const { copy, extras } = useLocale();
+  const [firstPromise, secondPromise, thirdPromise] = extras.welcome.promises;
   return (
     <main>
       <section className="hero">
@@ -107,20 +137,22 @@ function Welcome({ onStart }: { onStart: () => void }) {
         </div>
         <div className="hero-visual">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/hero-station.png" alt="Deux salariés en tenue d’hygiène dans une station de conditionnement" />
-          <div className="hero-stamp"><Check size={18} /> Voir · Agir · Alerter</div>
+          <img src="/images/hero-station.png" alt={extras.welcome.heroAlt} />
+          <div className="hero-stamp"><Check size={18} /> {extras.welcome.stamp}</div>
         </div>
       </section>
-      <section className="promise-strip" aria-label="Objectifs de la sensibilisation">
-        <div><CheckCircle2 /><span><strong>Voir</strong> une situation à risque</span></div>
-        <div><ShieldCheck /><span><strong>Agir</strong> selon la règle du site</span></div>
-        <div><CircleAlert /><span><strong>Alerter</strong> sans attendre</span></div>
+      <section className="promise-strip" aria-label={extras.welcome.promiseLabel}>
+        <div><CheckCircle2 /><span><strong>{firstPromise.title}</strong>{firstPromise.text}</span></div>
+        <div><ShieldCheck /><span><strong>{secondPromise.title}</strong>{secondPromise.text}</span></div>
+        <div><CircleAlert /><span><strong>{thirdPromise.title}</strong>{thirdPromise.text}</span></div>
       </section>
     </main>
   );
 }
 
-function LanguageChoice({ onSelect }: { onSelect: () => void }) {
+function LanguageChoice({ onSelect }: { onSelect: (code: LanguageCode) => void }) {
+  const { copy } = useLocale();
+  const hasUnavailableLanguage = languages.some((language) => !language.active);
   return (
     <main className="page-shell narrow-shell">
       <div className="section-heading centered">
@@ -134,7 +166,7 @@ function LanguageChoice({ onSelect }: { onSelect: () => void }) {
           <button
             key={language.code}
             className={`language-card ${language.active ? "active" : "disabled"}`}
-            onClick={language.active ? onSelect : undefined}
+            onClick={language.active ? () => onSelect(language.code) : undefined}
             disabled={!language.active}
             aria-label={`${language.native}, ${language.active ? copy.languages.available : copy.languages.soon}`}
           >
@@ -144,7 +176,7 @@ function LanguageChoice({ onSelect }: { onSelect: () => void }) {
           </button>
         ))}
       </div>
-      <p className="language-note">{copy.languages.note}</p>
+      {hasUnavailableLanguage && <p className="language-note">{copy.languages.note}</p>}
     </main>
   );
 }
@@ -158,13 +190,15 @@ function Themes({
   onOpen: (id: ThemeId) => void;
   onQuiz: () => void;
 }) {
+  const { content, copy, extras } = useLocale();
+  const themes = content.themes;
   return (
     <main className="page-shell">
       <div className="section-heading themes-heading">
         <p className="kicker plain">{copy.themes.kicker}</p>
         <h1>{copy.themes.title}</h1>
         <p>{copy.themes.intro}</p>
-        <span className="progress-summary">{progress.completed.length} / 8 thèmes terminés</span>
+        <span className="progress-summary">{extras.themeProgress(progress.completed.length)}</span>
       </div>
       <div className="theme-grid">
         {themes.map((theme) => {
@@ -217,6 +251,7 @@ function ThemeDetail({
   onContinue: () => void;
   onBackToThemes: () => void;
 }) {
+  const { copy, extras } = useLocale();
   return (
     <main className={`theme-detail theme-${theme.color}`}>
       <section className={`theme-hero ${theme.image ? "" : "solo"}`}>
@@ -267,8 +302,8 @@ function ThemeDetail({
         {theme.id === "securite" && (
           <figure className="inline-visual">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/arret-urgence.png" alt="Main actionnant un bouton d’arrêt d’urgence" />
-            <figcaption>En cas de danger : arrêt si nécessaire, puis alerte.</figcaption>
+            <img src="/images/arret-urgence.png" alt={extras.emergencyAlt} />
+            <figcaption>{extras.emergencyCaption}</figcaption>
           </figure>
         )}
       </div>
@@ -297,36 +332,37 @@ function ThemeDetail({
   );
 }
 
-function Quiz({ onFinish }: { onFinish: () => void }) {
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [score, setScore] = useState(0);
-  const question = fr.quizQuestions[questionIndex];
+function Quiz({ quiz, setQuiz, onFinish }: { quiz: QuizState; setQuiz: React.Dispatch<React.SetStateAction<QuizState>>; onFinish: () => void }) {
+  const { content, copy, extras } = useLocale();
+  const { questionIndex, selected, score } = quiz;
+  const question = content.quizQuestions[questionIndex];
   const isCorrect = selected === question.correct;
 
   const choose = (index: number) => {
     if (selected !== null) return;
-    setSelected(index);
-    if (index === question.correct) setScore((value) => value + 1);
+    setQuiz((current) => ({
+      ...current,
+      selected: index,
+      score: current.score + (index === question.correct ? 1 : 0),
+    }));
   };
 
   const next = () => {
-    if (questionIndex === fr.quizQuestions.length - 1) {
+    if (questionIndex === content.quizQuestions.length - 1) {
       onFinish();
       return;
     }
-    setQuestionIndex((value) => value + 1);
-    setSelected(null);
+    setQuiz((current) => ({ ...current, questionIndex: current.questionIndex + 1, selected: null }));
   };
 
   return (
     <main className="quiz-shell">
       <div className="quiz-topline">
-        <span>{copy.quiz.question} {questionIndex + 1} sur {fr.quizQuestions.length}</span>
-        <span>{score} bonne{score > 1 ? "s" : ""} réponse{score > 1 ? "s" : ""}</span>
+        <span>{extras.quizPosition(questionIndex + 1, content.quizQuestions.length)}</span>
+        <span>{extras.quizScore(score)}</span>
       </div>
-      <div className="quiz-progress" role="progressbar" aria-label="Progression du quiz" aria-valuenow={questionIndex + 1} aria-valuemin={1} aria-valuemax={fr.quizQuestions.length}>
-        <span style={{ width: `${((questionIndex + 1) / fr.quizQuestions.length) * 100}%` }} />
+      <div className="quiz-progress" role="progressbar" aria-label={extras.quizProgressLabel} aria-valuenow={questionIndex + 1} aria-valuemin={1} aria-valuemax={content.quizQuestions.length}>
+        <span style={{ width: `${((questionIndex + 1) / content.quizQuestions.length) * 100}%` }} />
       </div>
       <section className="quiz-card">
         <div className="quiz-symbol"><ShieldCheck /></div>
@@ -360,7 +396,7 @@ function Quiz({ onFinish }: { onFinish: () => void }) {
           </div>
         )}
         <button className="primary-button quiz-next" onClick={next} disabled={selected === null}>
-          {questionIndex === fr.quizQuestions.length - 1 ? copy.quiz.finish : copy.quiz.next} <ArrowRight size={20} />
+          {questionIndex === content.quizQuestions.length - 1 ? copy.quiz.finish : copy.quiz.next} <ArrowRight size={20} />
         </button>
       </section>
     </main>
@@ -368,6 +404,7 @@ function Quiz({ onFinish }: { onFinish: () => void }) {
 }
 
 function Recap({ onReview, onThemes }: { onReview: () => void; onThemes: () => void }) {
+  const { content, copy } = useLocale();
   return (
     <main className="recap-shell">
       <section className="success-panel">
@@ -382,7 +419,7 @@ function Recap({ onReview, onThemes }: { onReview: () => void; onThemes: () => v
           <h2>{copy.recap.reflexes}</h2>
         </div>
         <ol className="reflex-list">
-          {fr.essentialReflexes.map((reflex, index) => {
+          {content.essentialReflexes.map((reflex, index) => {
             const Icon = reflexIcons[index];
             return <li key={reflex}><span>{index + 1}</span><Icon size={20} />{reflex}</li>;
           })}
@@ -400,33 +437,41 @@ function Recap({ onReview, onThemes }: { onReview: () => void; onThemes: () => v
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
+  const [language, setLanguage] = useState<LanguageCode>("FR");
   const [activeThemeId, setActiveThemeId] = useState<ThemeId | null>(null);
   const [progress, setProgress] = useState<ThemeProgress>(emptyProgress);
+  const [quiz, setQuiz] = useState<QuizState>(emptyQuiz);
   const [languageSelected, setLanguageSelected] = useState(false);
   const [languageReturn, setLanguageReturn] = useState<Screen | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [justCompletedThemeId, setJustCompletedThemeId] = useState<ThemeId | null>(null);
   const completionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const content = contentByLanguage[language];
+  const copy = copyByLanguage[language];
+  const extras = uiExtrasByLanguage[language];
+  const themes = content.themes;
 
   useEffect(() => {
     let savedProgress = emptyProgress;
-    let savedLanguage = false;
+    let savedLanguage: LanguageCode | null = null;
     try {
       const saved = window.localStorage.getItem(STORAGE_PROGRESS);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<ThemeProgress>;
         savedProgress = {
-          completed: Array.isArray(parsed.completed) ? parsed.completed.filter((id): id is ThemeId => themes.some((theme) => theme.id === id)) : [],
-          inProgress: Array.isArray(parsed.inProgress) ? parsed.inProgress.filter((id): id is ThemeId => themes.some((theme) => theme.id === id)) : [],
+          completed: Array.isArray(parsed.completed) ? parsed.completed.filter((id): id is ThemeId => fr.themes.some((theme) => theme.id === id)) : [],
+          inProgress: Array.isArray(parsed.inProgress) ? parsed.inProgress.filter((id): id is ThemeId => fr.themes.some((theme) => theme.id === id)) : [],
         };
       }
-      savedLanguage = window.localStorage.getItem(STORAGE_LANGUAGE) === "FR";
+      const storedLanguage = window.localStorage.getItem(STORAGE_LANGUAGE);
+      savedLanguage = languages.find((item) => item.code === storedLanguage && item.active)?.code ?? null;
     } catch {
       // Le parcours reste entièrement utilisable si le stockage local est indisponible.
     }
     const frame = window.requestAnimationFrame(() => {
       setProgress(savedProgress);
-      setLanguageSelected(savedLanguage);
+      if (savedLanguage) setLanguage(savedLanguage);
+      setLanguageSelected(savedLanguage !== null);
       setStorageReady(true);
     });
     return () => window.cancelAnimationFrame(frame);
@@ -436,6 +481,13 @@ export default function Home() {
     if (!storageReady) return;
     try { window.localStorage.setItem(STORAGE_PROGRESS, JSON.stringify(progress)); } catch { /* stockage facultatif */ }
   }, [progress, storageReady]);
+
+  useEffect(() => {
+    document.documentElement.lang = language.toLowerCase();
+    document.documentElement.dir = content.direction;
+    document.title = `${copy.welcome.title} Pomembal`;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", copy.welcome.subtitle);
+  }, [content.direction, copy.welcome.subtitle, copy.welcome.title, language]);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [screen, activeThemeId]);
 
@@ -447,9 +499,10 @@ export default function Home() {
   const activeThemeIndex = themes.findIndex((theme) => theme.id === activeThemeId);
   const nextTheme = activeThemeIndex >= 0 ? themes[activeThemeIndex + 1] : undefined;
 
-  const selectLanguage = () => {
+  const selectLanguage = (code: LanguageCode) => {
+    setLanguage(code);
     setLanguageSelected(true);
-    try { window.localStorage.setItem(STORAGE_LANGUAGE, "FR"); } catch { /* stockage facultatif */ }
+    try { window.localStorage.setItem(STORAGE_LANGUAGE, code); } catch { /* stockage facultatif */ }
     setScreen(languageReturn && languageReturn !== "languages" ? languageReturn : "themes");
     setLanguageReturn(null);
   };
@@ -468,6 +521,11 @@ export default function Home() {
     setScreen("theme");
   };
 
+  const startQuiz = () => {
+    setQuiz(emptyQuiz);
+    setScreen("quiz");
+  };
+
   const clearCompletionTimer = () => {
     if (completionTimer.current) {
       window.clearTimeout(completionTimer.current);
@@ -481,7 +539,7 @@ export default function Home() {
     const currentIndex = themes.findIndex((theme) => theme.id === themeId);
     const followingTheme = currentIndex >= 0 ? themes[currentIndex + 1] : undefined;
     if (!followingTheme) {
-      setScreen("quiz");
+      startQuiz();
       return;
     }
     if (!followingTheme.available) {
@@ -524,29 +582,32 @@ export default function Home() {
   };
 
   return (
-    <div className="app-shell" dir={fr.direction}>
-      <Header
-        onBack={screen === "welcome" ? undefined : back}
-        onLanguage={openLanguage}
-        completedCount={progress.completed.length}
-        languageSelected={languageSelected}
-      />
-      {screen === "welcome" && <Welcome onStart={() => setScreen("languages")} />}
-      {screen === "languages" && <LanguageChoice onSelect={selectLanguage} />}
-      {screen === "themes" && <Themes progress={progress} onOpen={openTheme} onQuiz={() => setScreen("quiz")} />}
-      {screen === "theme" && activeTheme && (
-        <ThemeDetail
-          theme={activeTheme}
-          completed={progress.completed.includes(activeTheme.id)}
-          justCompleted={justCompletedThemeId === activeTheme.id}
-          nextTheme={nextTheme}
-          onDone={completeTheme}
-          onContinue={() => continueFromTheme(activeTheme.id)}
-          onBackToThemes={returnToThemes}
+    <LocaleContext.Provider value={{ content, copy, extras }}>
+      <div className={`app-shell locale-${language.toLowerCase()}`} dir={content.direction} lang={language.toLowerCase()}>
+        <Header
+          onBack={screen === "welcome" ? undefined : back}
+          onLanguage={openLanguage}
+          completedCount={progress.completed.length}
+          languageSelected={languageSelected}
+          language={language}
         />
-      )}
-      {screen === "quiz" && <Quiz onFinish={() => setScreen("recap")} />}
-      {screen === "recap" && <Recap onReview={() => openTheme("entree")} onThemes={() => setScreen("themes")} />}
-    </div>
+        {screen === "welcome" && <Welcome onStart={() => setScreen("languages")} />}
+        {screen === "languages" && <LanguageChoice onSelect={selectLanguage} />}
+        {screen === "themes" && <Themes progress={progress} onOpen={openTheme} onQuiz={startQuiz} />}
+        {screen === "theme" && activeTheme && (
+          <ThemeDetail
+            theme={activeTheme}
+            completed={progress.completed.includes(activeTheme.id)}
+            justCompleted={justCompletedThemeId === activeTheme.id}
+            nextTheme={nextTheme}
+            onDone={completeTheme}
+            onContinue={() => continueFromTheme(activeTheme.id)}
+            onBackToThemes={returnToThemes}
+          />
+        )}
+        {screen === "quiz" && <Quiz quiz={quiz} setQuiz={setQuiz} onFinish={() => setScreen("recap")} />}
+        {screen === "recap" && <Recap onReview={() => openTheme("entree")} onThemes={() => setScreen("themes")} />}
+      </div>
+    </LocaleContext.Provider>
   );
 }

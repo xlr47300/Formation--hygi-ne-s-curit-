@@ -38,7 +38,7 @@ L’audit du code n’a trouvé :
 ## Fonctionnement conservé
 
 - Les huit thèmes restent définis dans `src/content/fr.ts`.
-- Le français reste actif ; PL, PT et AR restent préparés mais annoncés comme bientôt disponibles.
+- Les quatre langues FR, PL, PT et AR sont désormais actives ; l’arabe utilise la direction RTL.
 - Le type de langue conserve les directions `ltr` et `rtl`.
 - La progression utilise `pomembal.progress.v2` dans `localStorage`.
 - La langue utilise `pomembal.language` dans `localStorage`.
@@ -146,7 +146,7 @@ Configuration exacte :
 
 ## Limitations restantes
 
-- Les traductions polonaise, portugaise et arabe ne sont pas fournies dans l’export original. Leurs emplacements et la préparation RTL sont conservés, mais seule la version française est active.
+- Les traductions polonaise, portugaise européenne et arabe standard moderne ont été ajoutées après la migration initiale. Elles doivent faire l’objet d’une relecture native avant validation métier définitive, notamment pour les intitulés internes Pomembal.
 - La progression est volontairement locale au navigateur ; elle ne suit pas un utilisateur entre plusieurs appareils.
 - Le déploiement Cloudflare lui-même n’a pas été déclenché : le dépôt est préparé pour être connecté au compte GitHub et au compte Cloudflare du propriétaire.
 

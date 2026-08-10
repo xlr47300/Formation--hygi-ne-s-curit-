@@ -82,9 +82,10 @@ npm run preview
 - `src/styles.css` : design, couleurs, mise en page et responsive ;
 - `src/content/fr.ts` : textes français, huit thèmes, questions du quiz et récapitulatif ;
 - `src/content/index.ts` : liste des langues et disponibilité ;
-- `src/content/pl.ts` : emplacement prévu pour le polonais ;
-- `src/content/pt.ts` : emplacement prévu pour le portugais ;
-- `src/content/ar.ts` : emplacement prévu pour l’arabe ;
+- `src/content/pl.ts` : contenus complets en polonais ;
+- `src/content/pt.ts` : contenus complets en portugais européen ;
+- `src/content/ar.ts` : contenus complets en arabe standard moderne ;
+- `src/content/ui.ts` : libellés d’interface complémentaires dans les quatre langues ;
 - `src/content/types.ts` : structure commune des contenus ;
 - `public/images/` : les cinq images utilisées par le site ;
 - `public/fonts/` : la police Geist locale ;
@@ -98,7 +99,7 @@ npm test
 
 ## Langues et arabe RTL
 
-Le français est actuellement la seule langue active, comme dans le site validé. Les entrées PL, PT et AR restent visibles avec la mention « Bientôt disponible ».
+Les quatre langues sont actives : français, polonais, portugais européen et arabe standard moderne. Le bouton de langue reste disponible sur toutes les pages et le choix est mémorisé dans le navigateur.
 
 La structure prévoit :
 
@@ -106,7 +107,7 @@ La structure prévoit :
 - une direction `ltr` pour le français, le polonais et le portugais ;
 - une direction `rtl` pour l’arabe.
 
-Les fichiers PL, PT et AR sont volontairement des emplacements à compléter. Leur activation demandera d’ajouter les traductions, puis de relier le contenu choisi dans `src/App.tsx`.
+La progression reste commune aux quatre langues. Changer de langue conserve le thème affiché, les thèmes terminés et, lorsqu’un quiz est en cours, la question et le score. L’arabe applique automatiquement la direction RTL sans retourner les images.
 
 ## Fonctionnement de la progression
 

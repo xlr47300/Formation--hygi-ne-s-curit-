@@ -195,6 +195,26 @@ blockquote { margin: 34px auto 24px; text-align: center; font-size: clamp(28px,4
 .final-reminder p { margin: 0; line-height: 1.45; }
 .recap-actions { max-width: 650px; margin: 26px auto 0; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
 
+/* Adaptations multilingues : le design reste identique, seuls le sens de lecture
+   et l'espace nécessaire aux libellés traduits sont ajustés. */
+[dir="rtl"] .language-card,
+[dir="rtl"] .theme-card,
+[dir="rtl"] .answers button { text-align: right; }
+[dir="rtl"] .lucide-arrow-left,
+[dir="rtl"] .lucide-arrow-right,
+[dir="rtl"] .lucide-chevron-right { transform: scaleX(-1); }
+[dir="rtl"] .promise-strip > div { border-right: 0; border-left: 1px solid rgba(255,255,255,.12); }
+[dir="rtl"] .brand { direction: ltr; }
+.locale-ar h1,
+.locale-ar h2,
+.locale-ar h3,
+.locale-ar .kicker,
+.locale-ar .brand,
+.locale-ar blockquote { letter-spacing: 0; }
+.locale-ar .hero h1 { text-transform: none; }
+.quiz-topline { gap: 12px; flex-wrap: wrap; }
+.answers button { height: auto; }
+
 @media (max-width: 760px) {
   .header-inner { height: 62px; padding: 0 14px; }
   .brand { font-size: 12px; letter-spacing: .12em; }
@@ -241,6 +261,16 @@ blockquote { margin: 34px auto 24px; text-align: center; font-size: clamp(28px,4
   .reflex-list { grid-template-columns: 1fr; }
   .recap-actions { flex-direction: column; }
   .recap-actions .primary-button,.recap-actions .secondary-button { width: 100%; }
+  .locale-pl .hero h1 { font-size: clamp(40px,12vw,58px); }
+  .locale-pt .hero h1 { font-size: clamp(43px,13vw,62px); }
+  .locale-ar .hero h1 { font-size: clamp(48px,14vw,66px); }
+  .locale-pl .completion-actions,
+  .locale-pt .completion-actions,
+  .locale-ar .completion-actions { grid-template-columns: 1fr; }
+  .locale-pl .completion-actions .primary-button,
+  .locale-pt .completion-actions .primary-button,
+  .locale-ar .completion-actions .primary-button { width: 100%; white-space: normal; padding-block: 10px; }
+  [dir="rtl"] .promise-strip > div { border-left: 0; }
 }
 
 @media (max-width: 360px) {
