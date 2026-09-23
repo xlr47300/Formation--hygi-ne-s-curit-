@@ -5,11 +5,16 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleAlert,
-  Clock3,
+  BookOpen,
+  Building2,
+  CalendarClock,
   Globe2,
+  GraduationCap,
   Hand,
   HardHat,
   HeartPulse,
+  Home as HomeIcon,
+  Lightbulb,
   LockKeyhole,
   PackageCheck,
   ShieldCheck,
@@ -33,8 +38,10 @@ import {
   ThemeId,
 } from "./content";
 import { uiExtrasByLanguage, type UiExtras } from "./content/ui";
+import Welcome from "./Welcome";
+import Booklet from "./Booklet";
 
-type Screen = "welcome" | "languages" | "themes" | "theme" | "quiz" | "recap";
+type Screen = "welcome" | "languages" | "portal" | "booklet" | "themes" | "theme" | "quiz" | "recap";
 type ThemeProgress = { completed: ThemeId[]; inProgress: ThemeId[] };
 type QuizState = { questionIndex: number; selected: number | null; score: number };
 
@@ -78,12 +85,16 @@ function Brand() {
 
 function Header({
   onBack,
+  onHome,
+  onPortal,
   onLanguage,
   completedCount,
   languageSelected,
   language,
 }: {
   onBack?: () => void;
+  onHome?: () => void;
+  onPortal?: () => void;
   onLanguage?: () => void;
   completedCount: number;
   languageSelected: boolean;
@@ -100,7 +111,8 @@ function Header({
             <ArrowLeft size={22} />
           </button>
         ) : <div className="header-spacer" />}
-        <Brand />
+        <div className="header-center"><Brand />{onPortal && <button className="header-portal-link" onClick={onPortal}>{({ FR: "Mes modules", PL: "Moje moduły", PT: "Os meus módulos", AR: "وحداتي" } as Record<LanguageCode, string>)[language]}</button>}</div>
+        {onHome && <button className="icon-button header-home" onClick={onHome} aria-label={({ FR: "Accueil", PL: "Strona główna", PT: "Início", AR: "الرئيسية" } as Record<LanguageCode, string>)[language]} title={({ FR: "Accueil", PL: "Strona główna", PT: "Início", AR: "الرئيسية" } as Record<LanguageCode, string>)[language]}><HomeIcon size={20} /></button>}
         {languageSelected ? (
           <button className="language-chip" onClick={onLanguage} aria-label={copy.header.language}>{language}</button>
         ) : <span className="language-chip passive" aria-label="Français">FR</span>}
@@ -120,35 +132,50 @@ function Header({
   );
 }
 
-function Welcome({ onStart }: { onStart: () => void }) {
-  const { copy, extras } = useLocale();
-  const [firstPromise, secondPromise, thirdPromise] = extras.welcome.promises;
+
+const portalCopy: Record<LanguageCode, {
+  kicker: string; title: string; intro: string; booklet: string; bookletText: string;
+  training: string; trainingText: string; open: string; soon: string; future: string; futureText: string;
+}> = {
+  FR: { kicker: "Votre espace", title: "Que souhaitez-vous consulter ?", intro: "Retrouvez les informations utiles pour votre arrivée et votre travail dans la station.", booklet: "Livret d’accueil", bookletText: "L’entreprise, les contacts, les horaires et les repères de votre premier jour.", training: "Formation Hygiène et Sécurité", trainingText: "Les 8 thèmes essentiels, suivis du quiz des bons réflexes.", open: "Ouvrir", soon: "Bientôt disponible", future: "Prochains contenus", futureText: "D’autres informations et formations pourront être ajoutées ici." },
+  PL: { kicker: "Twoja przestrzeń", title: "Co chcesz zobaczyć?", intro: "Znajdziesz tu informacje potrzebne na początku pracy w zakładzie.", booklet: "Przewodnik powitalny", bookletText: "Firma, kontakty, godziny pracy i informacje na pierwszy dzień.", training: "Szkolenie z higieny i bezpieczeństwa", trainingText: "8 najważniejszych tematów oraz quiz.", open: "Otwórz", soon: "Wkrótce dostępne", future: "Kolejne treści", futureText: "W przyszłości pojawią się tutaj inne informacje i szkolenia." },
+  PT: { kicker: "O seu espaço", title: "O que deseja consultar?", intro: "Encontre as informações úteis para a sua chegada e o seu trabalho na central.", booklet: "Manual de acolhimento", bookletText: "A empresa, os contactos, os horários e as informações para o primeiro dia.", training: "Formação Higiene e Segurança", trainingText: "Os 8 temas essenciais, seguidos do questionário.", open: "Abrir", soon: "Brevemente disponível", future: "Próximos conteúdos", futureText: "Outras informações e formações poderão ser adicionadas aqui." },
+  AR: { kicker: "مساحتك", title: "ماذا تريد أن تطّلع عليه؟", intro: "ستجد هنا المعلومات المفيدة لبدء عملك في محطة التعبئة.", booklet: "دليل الاستقبال", bookletText: "الشركة وجهات الاتصال وساعات العمل ومعلومات يومك الأول.", training: "التدريب على النظافة والسلامة", trainingText: "ثمانية مواضيع أساسية يتبعها اختبار.", open: "فتح", soon: "متاح قريبًا", future: "محتويات قادمة", futureText: "يمكن إضافة معلومات ودورات تدريبية أخرى هنا مستقبلًا." },
+};
+
+function Portal({ language, onBooklet, onTraining }: { language: LanguageCode; onBooklet: () => void; onTraining: () => void }) {
+  const labels = portalCopy[language];
+  const bookletAvailable = language === "FR";
   return (
-    <main>
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="kicker"><ShieldCheck size={18} /> {copy.welcome.kicker}</p>
-          <h1>{copy.welcome.title}</h1>
-          <p className="hero-subtitle">{copy.welcome.subtitle}</p>
-          <div className="duration"><Clock3 size={19} /><span>{copy.welcome.duration}</span></div>
-          <button className="primary-button" onClick={onStart}>
-            {copy.welcome.start} <ArrowRight size={21} />
-          </button>
+    <main id="main-content" tabIndex={-1} className="page-shell portal-shell">
+      <div className="section-heading portal-heading">
+        <p className="kicker plain">{labels.kicker}</p>
+        <h1>{labels.title}</h1>
+        <p>{labels.intro}</p>
+      </div>
+      <div className="portal-grid">
+        <button className={`portal-card booklet ${bookletAvailable ? "" : "disabled"}`} onClick={bookletAvailable ? onBooklet : undefined} disabled={!bookletAvailable}>
+          <img className="module-photo" src="/images/site-pomembal.webp" alt="" />
+          <span className="portal-card-icon"><BookOpen /></span>
+          <span className="portal-card-copy"><strong>{labels.booklet}</strong><small>{labels.bookletText}</small></span>
+          <span className="portal-card-action">{bookletAvailable ? labels.open : labels.soon}{bookletAvailable && <ChevronRight />}</span>
+        </button>
+        <button className="portal-card training" onClick={onTraining}>
+          <img className="module-photo" src="/images/hero-station.webp" alt="" />
+          <span className="portal-card-icon"><GraduationCap /></span>
+          <span className="portal-card-copy"><strong>{labels.training}</strong><small>{labels.trainingText}</small></span>
+          <span className="portal-card-action">{labels.open}<ChevronRight /></span>
+        </button>
+        <div className="portal-card future" aria-label={labels.future}>
+          <span className="portal-card-icon"><Sparkles /></span>
+          <span className="portal-card-copy"><strong>{labels.future}</strong><small>{labels.futureText}</small></span>
+          <span className="portal-card-action">{labels.soon}</span>
         </div>
-        <div className="hero-visual">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/hero-station.png" alt={extras.welcome.heroAlt} />
-          <div className="hero-stamp"><Check size={18} /> {extras.welcome.stamp}</div>
-        </div>
-      </section>
-      <section className="promise-strip" aria-label={extras.welcome.promiseLabel}>
-        <div><CheckCircle2 /><span><strong>{firstPromise.title}</strong>{firstPromise.text}</span></div>
-        <div><ShieldCheck /><span><strong>{secondPromise.title}</strong>{secondPromise.text}</span></div>
-        <div><CircleAlert /><span><strong>{thirdPromise.title}</strong>{thirdPromise.text}</span></div>
-      </section>
+      </div>
     </main>
   );
 }
+
 
 function LanguageChoice({ onSelect }: { onSelect: (code: LanguageCode) => void }) {
   const { copy } = useLocale();
@@ -263,7 +290,7 @@ function ThemeDetail({
         </div>
         {theme.image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={theme.image} alt={theme.imageAlt || ""} />
+          <img src={theme.image.replace(/\.(png|jpe?g)$/, ".webp")} alt={theme.imageAlt || ""} />
         )}
       </section>
       <div className="learning-stream">
@@ -302,7 +329,7 @@ function ThemeDetail({
         {theme.id === "securite" && (
           <figure className="inline-visual">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/arret-urgence.png" alt={extras.emergencyAlt} />
+            <img src="/images/arret-urgence.webp" alt={extras.emergencyAlt} />
             <figcaption>{extras.emergencyCaption}</figcaption>
           </figure>
         )}
@@ -485,11 +512,19 @@ export default function Home() {
   useEffect(() => {
     document.documentElement.lang = language.toLowerCase();
     document.documentElement.dir = content.direction;
-    document.title = `${copy.welcome.title} Pomembal`;
-    document.querySelector('meta[name="description"]')?.setAttribute("content", copy.welcome.subtitle);
-  }, [content.direction, copy.welcome.subtitle, copy.welcome.title, language]);
+    document.title = screen === "themes" || screen === "theme" || screen === "quiz" || screen === "recap"
+      ? `${copy.welcome.title} Pomembal`
+      : "Accueil et formations Pomembal";
+    document.querySelector('meta[name="description"]')?.setAttribute("content", screen === "booklet"
+      ? "Livret d’accueil des nouveaux salariés Pomembal."
+      : "Portail d’accueil, d’information et de formation des équipes Pomembal.");
+  }, [content.direction, copy.welcome.title, language, screen]);
 
-  useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [screen, activeThemeId]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    const main = document.querySelector<HTMLElement>("main");
+    if (main) { main.id = "main-content"; main.tabIndex = -1; main.focus({ preventScroll: true }); }
+  }, [screen, activeThemeId]);
 
   useEffect(() => () => {
     if (completionTimer.current) window.clearTimeout(completionTimer.current);
@@ -503,11 +538,15 @@ export default function Home() {
     setLanguage(code);
     setLanguageSelected(true);
     try { window.localStorage.setItem(STORAGE_LANGUAGE, code); } catch { /* stockage facultatif */ }
-    setScreen(languageReturn && languageReturn !== "languages" ? languageReturn : "themes");
+    const destination = languageReturn === "booklet" && code !== "FR"
+      ? "portal"
+      : languageReturn && languageReturn !== "languages" ? languageReturn : "portal";
+    setScreen(destination);
     setLanguageReturn(null);
   };
 
   const openLanguage = () => {
+    clearCompletionTimer();
     setLanguageReturn(screen);
     setScreen("languages");
   };
@@ -574,25 +613,32 @@ export default function Home() {
   };
 
   const back = () => {
+    clearCompletionTimer();
     if (screen === "languages") {
       setScreen(languageReturn || "welcome");
       setLanguageReturn(null);
-    } else if (screen === "themes") setScreen("welcome");
+    } else if (screen === "portal") setScreen("languages");
+    else if (screen === "booklet" || screen === "themes") setScreen("portal");
     else if (screen === "theme" || screen === "quiz" || screen === "recap") returnToThemes();
   };
 
   return (
     <LocaleContext.Provider value={{ content, copy, extras }}>
       <div className={`app-shell locale-${language.toLowerCase()}`} dir={content.direction} lang={language.toLowerCase()}>
-        <Header
-          onBack={screen === "welcome" ? undefined : back}
+        <a className="skip-link" href="#main-content">{({FR: "Aller au contenu", PL: "Przejdź do treści", PT: "Saltar para o conteúdo", AR: "انتقل إلى المحتوى"} as Record<LanguageCode,string>)[language]}</a>
+        {screen !== "welcome" && <Header
+          onBack={back}
+          onHome={() => { clearCompletionTimer(); setLanguageReturn(null); setScreen("welcome"); }}
+          onPortal={languageSelected && screen !== "portal" ? () => { clearCompletionTimer(); setLanguageReturn(null); setScreen("portal"); } : undefined}
           onLanguage={openLanguage}
           completedCount={progress.completed.length}
           languageSelected={languageSelected}
           language={language}
-        />
-        {screen === "welcome" && <Welcome onStart={() => setScreen("languages")} />}
+        />}
+        {screen === "welcome" && <Welcome onStart={() => { setLanguageReturn(null); setScreen("languages"); }} />}
         {screen === "languages" && <LanguageChoice onSelect={selectLanguage} />}
+        {screen === "portal" && <Portal language={language} onBooklet={() => setScreen("booklet")} onTraining={() => setScreen("themes")} />}
+        {screen === "booklet" && <Booklet onTraining={() => setScreen("themes")} onTheme={openTheme} />}
         {screen === "themes" && <Themes progress={progress} onOpen={openTheme} onQuiz={startQuiz} />}
         {screen === "theme" && activeTheme && (
           <ThemeDetail
